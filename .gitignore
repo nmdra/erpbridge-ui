@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.vite/
+.cache/
+playwright-report/
+test-results/
+.scratch/artifacts/
+.scratch/runs/
+.scratch/issues/
+.scratch/rca/
+.scratch/regressions/
+.playwright-cli/
+.env
+.env.*
+!.env.example

@@ -1,0 +1,40 @@
+{
+  "name": "erpbridge-ui",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:web": "vite",
+    "dev:bff": "tsx server/index.ts",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:e2e": "playwright test",
+    "sdk:stage": "tsx scripts/stage-sdk.ts",
+    "sdk:npm": "npm install --save-exact @erpbridge/sdk@0.1.1",
+    "infra:up": "tsx scripts/infra-up.ts",
+    "infra:ready": "tsx scripts/infra-ready.ts",
+    "infra:seed": "tsx scripts/seed-tools.ts",
+    "infra:down": "tsx scripts/infra-down.ts"
+  },
+  "dependencies": {
+    "@erpbridge/sdk": "0.1.1",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^24.3.0",
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^5.0.2",
+    "jsdom": "^26.1.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.3",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
+  }
+}

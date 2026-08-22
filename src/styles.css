@@ -1,0 +1,66 @@
+:root {
+  color: #e5edf7;
+  background: #0b1220;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; min-height: 100vh; }
+button, input, textarea, select { font: inherit; }
+.shell { width: min(1400px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0; }
+.hero { margin-bottom: 28px; }
+.eyebrow { color: #74d6c0; font-size: 0.78rem; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; }
+h1 { margin: 8px 0; font-size: clamp(2rem, 5vw, 4rem); line-height: 1; }
+h2 { margin-top: 0; }
+.lede { color: #aab9cc; max-width: 760px; }
+.card { background: #121d2d; border: 1px solid #263852; border-radius: 16px; padding: 24px; box-shadow: 0 18px 60px #0003; }
+.connection-bar, .section-heading, .button-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.connection-bar { background: #121d2d; border: 1px solid #263852; border-radius: 12px; padding: 12px 16px; color: #aab9cc; }
+.section-heading { justify-content: space-between; margin-bottom: 20px; }
+.section-heading h2 { margin: 4px 0 0; }
+.control-grid, .two-column, .dashboard-grid, .mcp-workbench { display: grid; gap: 16px; }
+.control-grid, .two-column, .mcp-workbench { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.dashboard-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 20px 0; }
+.panel { background: #0d1725; border: 1px solid #243650; border-radius: 12px; padding: 16px; min-width: 0; }
+.panel h3, .two-column h3 { margin-top: 0; }
+label { display: grid; gap: 7px; color: #aab9cc; font-size: 0.9rem; margin-bottom: 14px; }
+input, textarea, select { width: 100%; color: #e5edf7; background: #09111d; border: 1px solid #324865; border-radius: 8px; padding: 10px 12px; }
+textarea { resize: vertical; font-family: "SFMono-Regular", Consolas, monospace; font-size: 0.86rem; }
+button { color: #07131c; background: #74d6c0; border: 0; border-radius: 8px; cursor: pointer; padding: 10px 14px; font-weight: 750; }
+button.secondary { color: #d4e0ee; background: #243650; }
+button:disabled { cursor: not-allowed; opacity: 0.45; }
+pre { white-space: pre-wrap; overflow: auto; color: #b9e9de; background: #09111d; border-radius: 8px; padding: 12px; font-size: 0.82rem; }
+.schema { min-height: 120px; }
+.tall { max-height: 260px; }
+.status { color: #f0c77e; border: 1px solid #705e38; border-radius: 999px; padding: 4px 9px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.status.good { color: #74d6c0; border-color: #2e8373; }
+.muted, .operation { color: #8ea1b8; font-size: 0.88rem; }
+.operation { border-top: 1px solid #243650; padding-top: 12px; }
+.error { color: #ffc1c1; background: #3a1821; }
+.result { color: #c7f4bd; background: #142a20; }
+.environment-toolbar,
+.environment-stop,
+.runner-toolbar,
+.mutation-options { align-items: center; display: flex; gap: 1rem; justify-content: space-between; }
+.environment-stop,
+.mutation-options { border-top: 1px solid #243650; margin-top: 1rem; padding-top: 1rem; }
+.inline-check { align-items: center; display: inline-flex; gap: 0.5rem; }
+.inline-check input { accent-color: #74d6c0; width: auto; }
+.danger { background: #8f2f2f; color: #fff0f0; }
+.run-summary { color: #8ea1b8; font-size: 0.9rem; }
+.test-catalog { display: grid; gap: 0.7rem; margin-top: 1.25rem; }
+.test-row { background: #0d1725; border: 1px solid #243650; border-radius: 12px; display: grid; gap: 0.6rem; padding: 0.9rem 1rem; }
+.test-title, .test-result { align-items: center; display: flex; gap: 0.65rem; justify-content: space-between; }
+.test-result { justify-content: flex-end; }
+.tag { background: #593a1b; border-radius: 999px; color: #f5c47d; font-size: 0.7rem; padding: 0.2rem 0.5rem; text-transform: uppercase; }
+.status.bad { background: #5c2424; color: #ffb4b4; border-color: #9e4c4c; }
+.check-evidence { margin: 0; max-height: 12rem; }
+@media (max-width: 950px) { .dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 680px) {
+  .control-grid, .two-column, .mcp-workbench, .dashboard-grid { grid-template-columns: 1fr; }
+  .shell { width: min(100% - 20px, 1400px); padding-top: 24px; }
+  .environment-toolbar, .environment-stop, .runner-toolbar, .mutation-options { align-items: stretch; flex-direction: column; }
+  .test-result { justify-content: space-between; }
+}
