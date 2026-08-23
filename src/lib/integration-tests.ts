@@ -62,23 +62,37 @@ export function createIntegrationChecks(): IntegrationCheck[] {
       id: 'mcp-cors',
       label: 'MCP preflight exposes protocol headers',
       suite: 'MCP',
-      description: 'Validates the browser preflight independently from SDK initialization.',
+      description: 'Sends a cross-origin MCP initialize and verifies Mcp-Session-Id stays readable for session continuation.',
       mutates: false,
       async run({ baseUrl, fetcher = globalThis.fetch }) {
-        const response = await fetcher(`${baseUrl.replace(/\/$/, '')}/mcp/`, {
-          method: 'OPTIONS',
-          headers: {
-            Origin: 'http://127.0.0.1:5173',
-            'Access-Control-Request-Method': 'POST',
-            'Access-Control-Request-Headers': 'Content-Type, Mcp-Session-Id, MCP-Protocol-Version',
-          },
-        })
-        const allowed = response.headers.get('access-control-allow-headers')?.toLowerCase() ?? ''
-        const exposed = response.headers.get('access-control-expose-headers')?.toLowerCase() ?? ''
-        if (!response.ok || !allowed.includes('mcp-protocol-version') || !exposed.includes('mcp-session-id')) {
-          throw new Error('MCP preflight did not allow protocol/session headers')
+        // Browsers strip manually set Origin/Access-Control-Request-* headers
+        // (forbidden list) and hide CORS meta-headers on responses, so neither
+        // a synthesized OPTIONS nor reading Access-Control-* works there. A
+        // JSON POST makes the user agent run its own preflight; if it passes,
+        // the session id is readable exactly when the server exposes it.
+        let response: Response
+        try {
+          response = await fetcher(`${baseUrl.replace(/\/$/, '')}/mcp/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id: 1,
+              method: 'initialize',
+              params: {
+                protocolVersion: '2025-06-18',
+                capabilities: {},
+                clientInfo: { name: 'erpbridge-ui-preflight-check', version: '1.0.0' },
+              },
+            }),
+          })
+        } catch {
+          throw new Error('Cross-origin MCP initialize failed before a response was readable (CORS or network failure)')
         }
-        return { expected: 'MCP-Protocol-Version allowed and Mcp-Session-Id exposed', actual: 'CORS contract passed' }
+        if (!response.ok) throw new Error(`MCP initialize returned HTTP ${response.status}`)
+        const sessionId = response.headers.get('mcp-session-id')
+        if (!sessionId) throw new Error('MCP initialize did not return a readable Mcp-Session-Id; session continuation would fail')
+        return { expected: 'Cross-origin MCP initialize passes preflight and returns a readable Mcp-Session-Id', actual: 'CORS contract passed' }
       },
     },
     makeMcpCheck('mcp-root', '@erpbridge/sdk', createRootMcpSession),

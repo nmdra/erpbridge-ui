@@ -83,6 +83,46 @@ describe('registry contract checks', () => {
   })
 })
 
+describe('MCP preflight check', () => {
+  const corsResponse = () => new Response('{}', {
+    status: 200,
+    headers: { 'mcp-session-id': 'session-123' },
+  })
+
+  it('passes when a cross-origin initialize returns a readable session id', async () => {
+    const fetcher = vi.fn(async () => corsResponse())
+    const result = await runById('mcp-cors', { baseUrl: 'http://localhost:8080', fetcher })
+    expect(result.status).toBe('passed')
+    const [url, init] = fetcher.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toBe('http://localhost:8080/mcp/')
+    expect(init.method).toBe('POST')
+    expect(String(init.body)).toContain('"method":"initialize"')
+  })
+
+  it('fails on network refusal, HTTP errors, and missing session id', async () => {
+    const networkFailure = await runById('mcp-cors', {
+      baseUrl: 'http://localhost:8080',
+      fetcher: vi.fn(async () => { throw new TypeError('Failed to fetch') }),
+    })
+    expect(networkFailure.status).toBe('failed')
+    expect(networkFailure.error?.message).toContain('CORS or network failure')
+
+    const httpError = await runById('mcp-cors', {
+      baseUrl: 'http://localhost:8080',
+      fetcher: vi.fn(async () => new Response('', { status: 403 })),
+    })
+    expect(httpError.status).toBe('failed')
+    expect(httpError.error?.message).toContain('HTTP 403')
+
+    const missingSession = await runById('mcp-cors', {
+      baseUrl: 'http://localhost:8080',
+      fetcher: vi.fn(async () => new Response('{}', { status: 200 })),
+    })
+    expect(missingSession.status).toBe('failed')
+    expect(missingSession.error?.message).toContain('Mcp-Session-Id')
+  })
+})
+
 async function runById(id: string, overrides: Partial<IntegrationCheckContext>) {
   const check = createIntegrationChecks().find((entry) => entry.id === id)
   if (!check) throw new Error(`missing check ${id}`)

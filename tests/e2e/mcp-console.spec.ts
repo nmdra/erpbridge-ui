@@ -13,6 +13,8 @@ test.describe('browser MCP console', () => {
     await expect(page.getByTestId('integration-check-cache-flush').getByRole('button', { name: 'Run' })).toBeDisabled()
     await page.getByTestId('integration-check-environment-ready').getByRole('button', { name: 'Run' }).click()
     await expect(page.getByTestId('integration-check-environment-ready')).toContainText('passed')
+    await page.getByTestId('integration-check-mcp-cors').getByRole('button', { name: 'Run' }).click()
+    await expect(page.getByTestId('integration-check-mcp-cors')).toContainText('passed')
   })
 
   test('connects through the root SDK entry and calls both tool surfaces', async ({ page }) => {
