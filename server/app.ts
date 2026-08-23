@@ -11,6 +11,29 @@ export interface StartBffOptions {
   port?: number
 }
 
+/** Server role names accepted by ERPBridge guarded tools. */
+const ROLE_PATTERN = /^[a-z][a-z0-9_-]{0,63}$/
+
+/**
+ * Resolve BFF SDK credentials from documented environment variables only.
+ * Tokens never leave this module except inside the SDK client configuration.
+ */
+export function sdkAuthFromEnvironment(env: NodeJS.ProcessEnv = process.env): {
+  token?: string
+  auth?: { logs?: { token: string }; metrics?: { token: string } }
+} {
+  const globalToken = env.ERPBRIDGE_TOKEN
+  const logsToken = env.ERPBRIDGE_LOGS_TOKEN
+  const metricsToken = env.ERPBRIDGE_METRICS_TOKEN
+  return {
+    ...(globalToken ? { token: globalToken } : {}),
+    ...((logsToken || metricsToken) ? { auth: {
+      ...(logsToken ? { logs: { token: logsToken } } : {}),
+      ...(metricsToken ? { metrics: { token: metricsToken } } : {}),
+    } } : {}),
+  }
+}
+
 export interface StartedBff {
   server: Server
   url: string
@@ -26,7 +49,12 @@ export function createBffHandler(client: ErpbridgeClient, environment = createEn
       if (req.method === 'GET' && url.pathname === '/api/metrics/text') return sendJson(res, 200, { text: await client.metrics.text() })
       if (req.method === 'GET' && url.pathname === '/api/metrics/parsed') return sendJson(res, 200, await client.metrics.parsed())
       if (req.method === 'GET' && url.pathname === '/api/cache/stats') return sendJson(res, 200, await client.cache.stats())
-      if (req.method === 'GET' && url.pathname === '/api/registry') return sendJson(res, 200, await client.registry.list())
+      if (req.method === 'GET' && url.pathname === '/api/registry') {
+        return sendJson(res, 200, await client.registry.list({
+          name: url.searchParams.get('name') ?? undefined,
+          version: url.searchParams.get('version') ?? undefined,
+        }))
+      }
 
       if (req.method === 'GET' && url.pathname === '/api/environment/status') {
         return sendJson(res, 200, await environment.status())
@@ -60,7 +88,11 @@ export function createBffHandler(client: ErpbridgeClient, environment = createEn
         if (typeof name !== 'string' || name.length === 0) throw inputError('name must be a non-empty string')
         const args = body.args
         if (args !== undefined && !isArguments(args)) throw inputError('args must be a JSON object')
-        return sendJson(res, 200, await client.invoke(name, args ?? {}))
+        const role = body.role
+        if (role !== undefined && (typeof role !== 'string' || !ROLE_PATTERN.test(role))) {
+          throw inputError('role must match [a-z][a-z0-9_-]{0,63}')
+        }
+        return sendJson(res, 200, await client.invoke(name, args ?? {}, role === undefined ? undefined : { role }))
       }
       if (req.method === 'DELETE' && url.pathname === '/api/registry') {
         const name = url.searchParams.get('name')
@@ -82,7 +114,7 @@ export function createBffHandler(client: ErpbridgeClient, environment = createEn
 
 export async function startBff(options: StartBffOptions = {}): Promise<StartedBff> {
   const baseUrl = options.baseUrl ?? process.env.ERPBRIDGE_BASE_URL ?? 'http://localhost:8080'
-  const client = options.client ?? createClient({ baseUrl })
+  const client = options.client ?? createClient({ baseUrl, ...sdkAuthFromEnvironment(process.env) })
   const host = options.host ?? '127.0.0.1'
   const port = options.port ?? Number(process.env.BFF_PORT ?? 8787)
   const server = createServer(createBffHandler(client, options.environment ?? createEnvironmentController({ baseUrl })))

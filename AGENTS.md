@@ -37,7 +37,9 @@ npm run dev
 
 `infra:up`, `infra:ready`, and `infra:seed` use the ERPBridge checkout
 configured by `ERPBRIDGE_ROOT`. The host fallback in `README.md` is the
-alternative when Compose images are unavailable.
+alternative when Compose images are unavailable. `sdk:stage` only verifies a
+release candidate: it requires the sibling SDK worktree at the `@erpbridge/sdk@1.0.0`
+release commit and refuses any other version.
 
 ## Use the web console
 
@@ -81,6 +83,12 @@ The live integration command requires a reachable, seeded ERPBridge server.
 The browser suite requires a Playwright Chromium executable. Install it with
 `npx playwright install chromium` in a network-enabled environment when the
 system Chromium path is unavailable.
+
+Authenticated MCP and role-gated cases stay skipped unless
+`ERPBRIDGE_TEST_TOKEN` (and, for role-aware REST checks,
+`ERPBRIDGE_TEST_GUARDED_TOOL` with `ERPBRIDGE_TEST_ROLE`) are supplied.
+The console pairs exact `@erpbridge/sdk@1.0.0` with an ERPBridge
+v0.3-compatible server.
 
 ## Local-only safety
 

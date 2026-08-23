@@ -1,24 +1,35 @@
-import type { ToolDefinition, ToolResult } from '@erpbridge/sdk'
+import type { McpToolResult, ToolDefinition } from '@erpbridge/sdk'
 
-interface BrowserClient {
+/** Transient runtime configuration for a browser MCP session. */
+export interface BrowserClientConfig {
+  /** ERPBridge base URL. */
+  baseUrl: string
+  /**
+   * Optional bearer token for authenticated MCP calls.
+   * Runtime input only; never persisted by the console.
+   */
+  token?: string
+}
+
+export interface BrowserClient {
   mcp: {
     connect(): Promise<void>
     listTools(): Promise<ToolDefinition[]>
-    callTool(name: string, args: Record<string, unknown>): Promise<ToolResult>
+    callTool(name: string, args: Record<string, unknown>): Promise<McpToolResult>
     close(): Promise<void>
   }
-  tools: Record<string, ((args: Record<string, unknown>) => Promise<ToolResult>) | undefined>
+  tools: Record<string, ((args?: Record<string, unknown>) => Promise<McpToolResult>) | undefined>
 }
 
 export interface BrowserMcpSession {
   connect(): Promise<void>
   listTools(): Promise<ToolDefinition[]>
-  call(name: string, args: Record<string, unknown>): Promise<ToolResult>
-  proxyCall(name: string, args: Record<string, unknown>): Promise<ToolResult>
+  call(name: string, args: Record<string, unknown>): Promise<McpToolResult>
+  proxyCall(name: string, args: Record<string, unknown>): Promise<McpToolResult>
   close(): Promise<void>
 }
 
-export function createBrowserMcpSession(factory: () => BrowserClient): BrowserMcpSession {
+export function createBrowserMcpSession(config: BrowserClientConfig, factory: (config: BrowserClientConfig) => BrowserClient): BrowserMcpSession {
   let client: BrowserClient | undefined
 
   const requireClient = (): BrowserClient => {
@@ -26,13 +37,32 @@ export function createBrowserMcpSession(factory: () => BrowserClient): BrowserMc
     return client
   }
 
+  const discard = async (target: BrowserClient): Promise<void> => {
+    try {
+      await target.mcp.close()
+    } catch {
+      // Closing a half-open client is best-effort cleanup; the original error matters more.
+    }
+  }
+
   return {
     async connect() {
-      client ??= factory()
-      await client.mcp.connect()
+      if (client) return
+      const candidate = factory(config)
+      try {
+        await candidate.mcp.connect()
+      } catch (error) {
+        await discard(candidate)
+        throw error
+      }
+      client = candidate
     },
-    listTools: () => requireClient().mcp.listTools(),
-    call: (name, args) => requireClient().mcp.callTool(name, args),
+    async listTools() {
+      return requireClient().mcp.listTools()
+    },
+    async call(name, args) {
+      return requireClient().mcp.callTool(name, args)
+    },
     async proxyCall(name, args) {
       const fn = requireClient().tools[name]
       if (!fn) throw new Error(`MCP tool proxy is not available for '${name}'`)

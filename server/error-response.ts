@@ -7,6 +7,7 @@ export interface SafeErrorResponse {
   code?: number
   retryAfter?: string
   hint?: string
+  requiredScope?: string
   body?: unknown
   stages?: unknown
 }
@@ -18,6 +19,7 @@ export function toSafeError(error: unknown): SafeErrorResponse {
       code?: unknown
       retryAfter?: unknown
       hint?: unknown
+      requiredScope?: unknown
       body?: unknown
       stages?: unknown
     }
@@ -29,6 +31,7 @@ export function toSafeError(error: unknown): SafeErrorResponse {
     if (typeof source.code === 'number') result.code = source.code
     if (typeof source.retryAfter === 'string') result.retryAfter = source.retryAfter
     if (typeof source.hint === 'string') result.hint = source.hint
+    if (typeof source.requiredScope === 'string') result.requiredScope = source.requiredScope
     if (source.body !== undefined) result.body = redact(source.body)
     if (source.stages !== undefined) result.stages = redact(source.stages)
     return result

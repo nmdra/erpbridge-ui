@@ -45,10 +45,10 @@ export interface RestApi {
   metricsParsed(): Promise<ParsedMetrics>
   cacheStats(): Promise<CacheStats>
   flushCache(options: { tool?: string; module?: string; all?: true }): Promise<{ deleted: number; status: string }>
-  registryList(): Promise<RegistryTool[]>
+  registryList(filters?: { name?: string; version?: string }): Promise<RegistryTool[]>
   registryApply(tool: RegistryTool): Promise<ToolApplyResult>
   registryDelete(name: string, version: string, hard?: boolean): Promise<void>
-  invoke(name: string, args: Record<string, unknown>): Promise<ToolResult>
+  invoke(name: string, args: Record<string, unknown>, options?: { role?: string }): Promise<ToolResult>
   openLogStream(onRecord: (record: LogRecord) => void, onError?: (error: unknown) => void): () => void
 }
 
@@ -58,6 +58,7 @@ export interface BffApiError extends Error {
   body?: unknown
   retryAfter?: string
   hint?: string
+  requiredScope?: string
 }
 
 export function createRestApi(fetcher: typeof fetch = globalThis.fetch): RestApi {
@@ -74,6 +75,7 @@ export function createRestApi(fetcher: typeof fetch = globalThis.fetch): RestApi
         body: details?.body,
         retryAfter: typeof details?.retryAfter === 'string' ? details.retryAfter : undefined,
         hint: typeof details?.hint === 'string' ? details.hint : undefined,
+        requiredScope: typeof details?.requiredScope === 'string' ? details.requiredScope : undefined,
       }) as BffApiError
       throw error
     }
@@ -92,12 +94,18 @@ export function createRestApi(fetcher: typeof fetch = globalThis.fetch): RestApi
     metricsParsed: () => request<ParsedMetrics>('/api/metrics/parsed'),
     cacheStats: () => request<CacheStats>('/api/cache/stats'),
     flushCache: (options) => request('/api/cache/flush', jsonPost(options)),
-    registryList: () => request<RegistryTool[]>('/api/registry'),
+    registryList: (filters = {}) => {
+      const params = new URLSearchParams()
+      if (filters.name !== undefined) params.set('name', filters.name)
+      if (filters.version !== undefined) params.set('version', filters.version)
+      const query = params.toString()
+      return request<RegistryTool[]>(`/api/registry${query ? `?${query}` : ''}`)
+    },
     registryApply: (tool) => request('/api/registry', jsonPost(tool)),
     async registryDelete(name, version, hard = false) {
       await request(`/api/registry?name=${encodeURIComponent(name)}&version=${encodeURIComponent(version)}&hard=${hard}`, { method: 'DELETE' })
     },
-    invoke: (name, args) => request('/api/invoke', jsonPost({ name, args })),
+    invoke: (name, args, options = {}) => request('/api/invoke', jsonPost(options.role === undefined ? { name, args } : { name, args, role: options.role })),
     openLogStream(onRecord, onError) {
       const source = new EventSource('/api/logs/stream')
       source.onmessage = (event) => {

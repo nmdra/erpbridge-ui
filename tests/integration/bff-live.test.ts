@@ -2,6 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { startBff, type StartedBff } from '../../server/app.js'
 
 const serverUrl = process.env.ERPBRIDGE_TEST_SERVER
+const guardedTool = process.env.ERPBRIDGE_TEST_GUARDED_TOOL
+const guardedRole = process.env.ERPBRIDGE_TEST_ROLE
 const integration = serverUrl ? describe : describe.skip
 let bff: StartedBff
 
@@ -19,6 +21,12 @@ integration('live BFF REST surfaces', () => {
   afterAll(async () => { await bff?.close() })
 
   it('forwards health, logs, metrics, cache, and registry reads', async () => {
+    // A freshly seeded server registers invocation counters lazily; one
+    // read-only invoke guarantees the metric families exist.
+    await json<{ result: unknown }>('/api/invoke', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'list_employees', args: {} }),
+    })
+
     const health = await json<{ status: string }>('/api/health')
     expect(health.response.status).toBe(200)
     expect(health.body).toEqual({ status: 'ok' })
@@ -63,7 +71,7 @@ integration('live BFF REST surfaces', () => {
     const name = 'ui_bff_probe'
     const definition = {
       apiVersion: 'erpbridge.io/v1',
-      kind: 'Tool',
+      kind: 'MCPTool',
       metadata: { name, version: '1.0.0', module: 'ui-test' },
       spec: {
         description: { short: 'UI BFF probe' },
@@ -81,6 +89,11 @@ integration('live BFF REST surfaces', () => {
 
       const listed = await json<Array<{ metadata: { name: string } }>>('/api/registry')
       expect(listed.body.some((tool) => tool.metadata.name === name)).toBe(true)
+
+      const filtered = await json<Array<{ metadata: { name: string } }>>(`/api/registry?name=${name}&version=1.0.0`)
+      expect(filtered.response.status).toBe(200)
+      expect(filtered.body.length).toBeGreaterThan(0)
+      expect(filtered.body.every((tool) => tool.metadata.name === name)).toBe(true)
     } finally {
       const deleted = await request(`/api/registry?name=${name}&version=1.0.0&hard=true`, { method: 'DELETE' })
       expect(deleted.status).toBe(204)
@@ -113,5 +126,34 @@ integration('live BFF REST surfaces', () => {
     })
     expect(invalid.response.status).toBe(400)
     expect(invalid.body.error).toMatchObject({ name: 'InputError', status: 400 })
+  })
+
+  const roleSuite = serverUrl && guardedTool && guardedRole ? describe : describe.skip
+
+  roleSuite('role-gated direct invokes', () => {
+    it('rejects an invalid role name before reaching the server', async () => {
+      const rejected = await json<{ error: { name: string } }>('/api/invoke', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: guardedTool, args: {}, role: 'NOT A ROLE' }),
+      })
+      expect(rejected.response.status).toBe(400)
+      expect(rejected.body.error.name).toBe('InputError')
+    })
+
+    it('invokes a guarded tool with the configured role and denies without it', async () => {
+      const allowed = await json<{ result: unknown; isError?: boolean }>('/api/invoke', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: guardedTool, args: {}, role: guardedRole }),
+      })
+      expect(allowed.response.status).toBe(200)
+
+      const denied = await json<{ error?: { name?: string; status?: number } }>('/api/invoke', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: guardedTool, args: {} }),
+      })
+      const denialStatus = denied.body.error?.status ?? denied.response.status
+      expect(denialStatus).toBeGreaterThanOrEqual(400)
+      expect(denialStatus).toBeLessThan(500)
+    })
   })
 })

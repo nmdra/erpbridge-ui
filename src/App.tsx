@@ -19,6 +19,7 @@ export default function App() {
   const [stopStream, setStopStream] = useState<(() => void) | undefined>()
   const [invokeName, setInvokeName] = useState('list_employees')
   const [invokeArgs, setInvokeArgs] = useState('{}')
+  const [invokeRole, setInvokeRole] = useState('')
   const [registryText, setRegistryText] = useState('')
   const [restResult, setRestResult] = useState<unknown>()
 
@@ -47,7 +48,8 @@ export default function App() {
     setBusy(true)
     setRestError(undefined)
     try {
-      const result = await api.invoke(invokeName, parseObject(invokeArgs))
+      const selectedRole = invokeRole.trim()
+      const result = await api.invoke(invokeName, parseObject(invokeArgs), selectedRole ? { role: selectedRole } : undefined)
       setRestResult(result)
     } catch (error) { setRestError(formatError(error)) } finally { setBusy(false) }
   }
@@ -109,6 +111,7 @@ export default function App() {
             <h3>Direct REST invoke</h3>
             <label>Tool name<input value={invokeName} onChange={(event) => setInvokeName(event.target.value)} /></label>
             <label>Arguments<textarea value={invokeArgs} onChange={(event) => setInvokeArgs(event.target.value)} rows={5} spellCheck={false} /></label>
+            <label>Role (guarded tools)<input value={invokeRole} onChange={(event) => setInvokeRole(event.target.value)} placeholder="Sent as X-ERPBridge-Role" spellCheck={false} /></label>
             <button onClick={invoke} disabled={busy}>Invoke through BFF</button>
           </div>
           <div>
@@ -142,6 +145,11 @@ function parseObject(text: string): Record<string, unknown> {
 function formatJson(value: unknown): string { return typeof value === 'string' ? value : JSON.stringify(value, null, 2) }
 function formatError(error: unknown): string {
   const value = error as Partial<BffApiError> | undefined
-  if (value?.name && value.message) return `${value.name}: ${value.message}${value.status ? ` (HTTP ${value.status})` : ''}`
+  if (value?.name && value.message) {
+    const parts = [`${value.name}: ${value.message}`]
+    if (value.status) parts.push(`HTTP ${value.status}`)
+    if (typeof value.requiredScope === 'string') parts.push(`required scope: ${value.requiredScope}`)
+    return parts.join(' — ')
+  }
   return error instanceof Error ? `${error.name}: ${error.message}` : String(error)
 }
